@@ -134,11 +134,11 @@ Hệ thống GovChain được thiết kế theo mô hình 3 tầng kết hợp 
 
 Dưới đây là luồng xử lý chính của hệ thống khi nộp hồ sơ và cập nhật trạng thái.
 
-![Sequence Diagram](out/docs/sequence_diagram/sequence_diagram.png)
+![Sequence Diagram](docs/images/sequence_diagram.png)
 
 ## Biểu đồ ca sử dụng (Use Case Diagram)
 
 Mô tả các chức năng chính của các tác nhân trong hệ thống.
 
-![Use Case Diagram](out/docs/usecase_diagram/usecase_diagram.png)
+![Use Case Diagram](docs/images/usecase_diagram.png)
 
