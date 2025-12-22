@@ -1,0 +1,55 @@
+@startuml
+actor Citizen
+actor Officer
+participant "Frontend (React)" as FE
+participant "Backend (Node.js)" as BE
+participant "IPFS Node" as IPFS
+participant "Blockchain (GovChain)" as BC
+
+== Nộp Hồ Sơ (Submit Case) ==
+Citizen -> FE: Điền form & Upload file
+activate FE
+FE -> BE: POST /api/cases/submit (FormData)
+activate BE
+BE -> IPFS: Upload file
+activate IPFS
+IPFS --> BE: Trả về File Hash (CID)
+deactivate IPFS
+BE -> BC: submitCase(citizenId, fileHash, description)
+activate BC
+BC --> BE: Transaction Receipt (Case ID)
+deactivate BC
+BE --> FE: Response (Success, Case ID)
+deactivate BE
+FE --> Citizen: Hiển thị thông báo thành công
+deactivate FE
+
+== Cập Nhật Trạng Thái (Update Status) ==
+Officer -> FE: Chọn hồ sơ & Cập nhật trạng thái
+activate FE
+FE -> BE: PUT /api/cases/:id/status
+activate BE
+BE -> BC: updateStatus(caseId, status, note)
+activate BC
+BC --> BE: Transaction Receipt
+deactivate BC
+BE --> FE: Response (Success)
+deactivate BE
+FE --> Officer: Cập nhật giao diện
+deactivate FE
+
+== Tra Cứu Hồ Sơ (Get Case) ==
+Citizen -> FE: Xem danh sách/Chi tiết
+activate FE
+FE -> BE: GET /api/cases/:id
+activate BE
+BE -> BC: getCase(caseId)
+activate BC
+BC --> BE: Case Data (bao gồm File Hash)
+deactivate BC
+BE --> FE: Case Data
+deactivate BE
+FE -> IPFS: (Optional) Fetch file using Hash
+FE --> Citizen: Hiển thị thông tin
+deactivate FE
+@enduml

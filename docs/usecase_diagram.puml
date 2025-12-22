@@ -1,0 +1,33 @@
+@startuml
+left to right direction
+actor "Công dân (Citizen)" as Citizen
+actor "Cán bộ (Officer)" as Officer
+
+rectangle "Hệ thống GovChain" {
+  usecase "Đăng nhập" as UC1
+  usecase "Nộp hồ sơ mới" as UC2
+  usecase "Tra cứu thông tin hồ sơ" as UC3
+  usecase "Xem danh sách hồ sơ" as UC4
+  usecase "Cập nhật trạng thái hồ sơ" as UC5
+}
+
+Citizen --> UC1
+Citizen --> UC2
+Citizen --> UC3
+
+Officer --> UC1
+Officer --> UC3
+Officer --> UC4
+Officer --> UC5
+
+note right of UC2
+  Bao gồm tải lên tệp đính kèm
+  lên IPFS và lưu hash lên Blockchain
+end note
+
+note right of UC5
+  Ghi lại log thay đổi
+  trạng thái lên Blockchain
+end note
+
+@enduml
