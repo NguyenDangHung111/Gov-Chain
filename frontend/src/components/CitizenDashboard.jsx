@@ -2,6 +2,16 @@ import { useState, useEffect } from "react";
 import { submitCase, getCasesByCitizen, getCaseLogs } from "../api/caseApi";
 import "../CitizenDashboard.css";
 
+// Mapping status theo API mới
+const STATUS_MAP = {
+  0: 'Đã nộp',
+  1: 'Đang xử lý',
+  2: 'Yêu cầu bổ sung',
+  3: 'Đã duyệt',
+  4: 'Từ chối',
+  5: 'Hoàn thành'
+};
+
 const SERVICES = [
   { id: 'birth_cert', name: 'Đăng ký khai sinh', desc: 'Thủ tục đăng ký khai sinh cho trẻ em mới sinh.' },
   { id: 'marriage_cert', name: 'Đăng ký kết hôn', desc: 'Thủ tục đăng ký kết hôn cho công dân.' },
@@ -47,10 +57,25 @@ export default function CitizenDashboard({ user }) {
   const loadHistory = async () => {
     setLoading(true);
     try {
+      console.log("Loading history for citizenId:", user.citizenId);
       const res = await getCasesByCitizen(user.citizenId);
-      setHistoryCases(res.data.data || []);
+      console.log("History response:", res);
+      const data = res.data.data || res.data || [];
+      console.log("History data:", data);
+      setHistoryCases(data);
     } catch (e) {
-      console.error(e);
+      console.error("Error loading history:", e);
+      // Fallback: try to get all cases and filter
+      try {
+        const { getAllCases } = await import("../api/caseApi");
+        const allRes = await getAllCases();
+        const allCases = allRes.data.data || allRes.data || [];
+        const filtered = allCases.filter(c => c.citizenId === user.citizenId);
+        console.log("Fallback - Filtered cases:", filtered);
+        setHistoryCases(filtered);
+      } catch (e2) {
+        console.error("Fallback also failed:", e2);
+      }
     } finally {
       setLoading(false);
     }
@@ -59,10 +84,15 @@ export default function CitizenDashboard({ user }) {
   const handleViewCase = async (caseItem) => {
     setSelectedCase(caseItem);
     try {
+      console.log("Loading logs for case:", caseItem.id);
       const res = await getCaseLogs(caseItem.id);
-      setCaseLogs(res.data.data || []);
+      console.log("Case logs response:", res);
+      const logsData = res.data.data || res.data || [];
+      console.log("Case logs data:", logsData);
+      setCaseLogs(logsData);
     } catch (e) {
-      console.error(e);
+      console.error("Error loading case logs:", e);
+      setCaseLogs([]);
     }
   };
 
@@ -382,11 +412,23 @@ export default function CitizenDashboard({ user }) {
                     )}
                   </div>
                   
-                  <h4 style={{borderLeft: '4px solid #007bff', paddingLeft: 10, margin: '30px 0 15px'}}>Lịch sử xử lý</h4>
+                  <h4 style={{borderLeft: '4px solid #007bff', paddingLeft: 10, margin: '30px 0 15px'}}>Lịch sử xử lý ({caseLogs.length} bản ghi)</h4>
+                  {caseLogs.length === 0 ? (
+                    <div style={{padding: 20, backgroundColor: '#f8f9fa', borderRadius: 8, textAlign: 'center', color: '#999'}}>
+                      <p style={{margin: 0, fontStyle: 'italic'}}>Chưa có lịch sử xử lý</p>
+                    </div>
+                  ) : (
                   <div style={{position: 'relative', paddingLeft: 20}}>
                     <div style={{position: 'absolute', left: 0, top: 10, bottom: 10, width: 2, backgroundColor: '#eee'}}></div>
                     <ul style={{listStyle: 'none', padding: 0, margin: 0}}>
-                      {caseLogs.map((log, idx) => (
+                      {caseLogs.map((log, idx) => {
+                        const statusNum = Number(log.status);
+                        // Màu: 3=Đã duyệt, 5=Hoàn thành -> xanh; 4=Từ chối -> đỏ; còn lại -> xanh dương
+                        const isSuccess = statusNum === 3 || statusNum === 5;
+                        const isReject = statusNum === 4;
+                        const dotColor = isSuccess ? '#28a745' : isReject ? '#dc3545' : '#007bff';
+                        const statusIcon = statusNum === 0 ? '📋' : isSuccess ? '✅' : isReject ? '❌' : '🔄';
+                        return (
                         <li key={idx} style={{marginBottom: 20, position: 'relative'}}>
                           <div style={{
                             position: 'absolute', 
@@ -395,14 +437,14 @@ export default function CitizenDashboard({ user }) {
                             width: 10, 
                             height: 10, 
                             borderRadius: '50%', 
-                            backgroundColor: Number(log.status) === 4 ? '#28a745' : Number(log.status) === 5 ? '#dc3545' : '#007bff',
+                            backgroundColor: dotColor,
                             border: '2px solid white',
-                            boxShadow: `0 0 0 2px ${Number(log.status) === 4 ? '#28a745' : Number(log.status) === 5 ? '#dc3545' : '#007bff'}`
+                            boxShadow: `0 0 0 2px ${dotColor}`
                           }}></div>
                           <div style={{backgroundColor: '#f8f9fa', padding: 15, borderRadius: 8}}>
                             <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 5}}>
-                              <strong style={{color: Number(log.status) === 4 ? '#28a745' : Number(log.status) === 5 ? '#dc3545' : '#007bff'}}>
-                                {Number(log.status) === 0 ? '📋' : Number(log.status) === 4 ? '✅' : Number(log.status) === 5 ? '❌' : '🔄'} {["Đã nộp", "Đã tiếp nhận", "Đã phân công", "Đang xử lý", "Đã duyệt", "Từ chối"][Number(log.status)]}
+                              <strong style={{color: dotColor}}>
+                                {statusIcon} {STATUS_MAP[statusNum] || `Trạng thái ${statusNum}`}
                               </strong>
                               <span style={{fontSize: 12, color: '#999'}}>
                                 {formatDate(log)}
@@ -410,12 +452,8 @@ export default function CitizenDashboard({ user }) {
                             </div>
                             <div style={{fontSize: 13, color: '#555'}}>
                               <span>Bởi: </span>
-                              <strong>
-                                {log.officer 
-                                  ? `${log.officer.fullName} (${log.officer.job})` 
-                                  : (Number(log.status) === 0 ? user.name : 'Hệ thống')
-                                }
-                              </strong>
+                              <strong>{log.actorName || 'Hệ thống'}</strong>
+                              {log.actorCitizenId && <span style={{color: '#888'}}> ({log.actorCitizenId})</span>}
                             </div>
                             {log.note && (
                               <div style={{marginTop: 8, padding: '8px 12px', backgroundColor: '#fff', borderLeft: '3px solid #ddd', fontStyle: 'italic', fontSize: 13, textAlign: 'left'}}>
@@ -431,9 +469,11 @@ export default function CitizenDashboard({ user }) {
                             )}
                           </div>
                         </li>
-                      ))}
+                        );
+                      })}
                     </ul>
                   </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -452,7 +492,12 @@ export default function CitizenDashboard({ user }) {
                     {historyCases.length === 0 ? (
                       <tr><td colSpan={5} style={{padding: 40, textAlign: 'center', color: '#999'}}>Chưa có hồ sơ nào</td></tr>
                     ) : (
-                      historyCases.map(c => (
+                      historyCases.map(c => {
+                        const statusNum = Number(c.status);
+                        // Màu sắc theo status mới: 0=xám, 1=xanh dương, 2=vàng, 3=xanh lá, 4=đỏ, 5=xanh lá đậm
+                        const bgColors = { 0: '#e2e3e5', 1: '#cce5ff', 2: '#fff3cd', 3: '#d4edda', 4: '#f8d7da', 5: '#c3e6cb' };
+                        const textColors = { 0: '#383d41', 1: '#004085', 2: '#856404', 3: '#155724', 4: '#721c24', 5: '#155724' };
+                        return (
                         <tr key={c.id} style={{borderBottom: '1px solid #f0f0f0', transition: 'background 0.2s'}} className="hover-row">
                           <td style={{padding: '15px 20px', fontWeight: 500}}>#{c.id}</td>
                           <td style={{padding: '15px 20px', color: '#555'}}>{c.description.length > 50 ? c.description.substring(0,50)+'...' : c.description}</td>
@@ -463,10 +508,10 @@ export default function CitizenDashboard({ user }) {
                               borderRadius: 20, 
                               fontSize: 12,
                               fontWeight: 600,
-                              backgroundColor: ["#e2e3e5", "#cce5ff", "#fff3cd", "#d1ecf1", "#d4edda", "#f8d7da"][Number(c.status)],
-                              color: ["#383d41", "#004085", "#856404", "#0c5460", "#155724", "#721c24"][Number(c.status)]
+                              backgroundColor: bgColors[statusNum] || '#e2e3e5',
+                              color: textColors[statusNum] || '#383d41'
                             }}>
-                              {["Đã nộp", "Đã tiếp nhận", "Đã phân công", "Đang xử lý", "Đã duyệt", "Từ chối"][Number(c.status)]}
+                              {STATUS_MAP[statusNum] || `Trạng thái ${statusNum}`}
                             </span>
                           </td>
                           <td style={{padding: '15px 20px', textAlign: 'right'}}>
@@ -487,7 +532,8 @@ export default function CitizenDashboard({ user }) {
                             </button>
                           </td>
                         </tr>
-                      ))
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

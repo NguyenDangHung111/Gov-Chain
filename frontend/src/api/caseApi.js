@@ -7,7 +7,7 @@ const api = axios.create({
 
 export const submitCase = (payload) => api.post("/cases", payload);
 export const getCase = (id) => api.get(`/cases/${id}`);
-export const getCasesByCitizen = (citizenId) => api.get(`/cases?citizenId=${citizenId}`);
+export const getCasesByCitizen = (citizenId) => api.get(`/cases/citizen/${citizenId}`);
 export const getAllCases = () => api.get("/cases/all");
 export const getCaseLogs = (id) => api.get(`/cases/${id}/logs`);
 export const updateStatus = (id, payload) => api.put(`/cases/${id}/status`, payload);

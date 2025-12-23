@@ -9,6 +9,7 @@ const upload = multer({
 });
 
 router.post('/', upload.single('file'), ctrl.submitCase);                 // POST /api/cases
+router.get('/all', ctrl.getAllCases);              // GET /api/cases/all
 router.put('/:caseId/status', ctrl.updateStatus);  // PUT /api/cases/:caseId/status
 router.get('/:caseId', ctrl.getCase);              // GET /api/cases/:caseId
 router.get('/:caseId/logs', ctrl.getLogs);         // GET /api/cases/:caseId/logs

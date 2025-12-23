@@ -23,6 +23,8 @@ class StatusLog extends Model<StatusLogAttributes, StatusLogCreationAttributes> 
   public note!: string;
   public txHash?: string;
 
+  public readonly officer?: User; // Association
+
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }

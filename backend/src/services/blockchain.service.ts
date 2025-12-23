@@ -99,6 +99,23 @@ export const getCase = async (caseId: string | number): Promise<CaseData> => {
   };
 };
 
+// Get all cases
+export const getAllCases = async (): Promise<CaseData[]> => {
+  const count = await contract.caseCounter();
+  const total = Number(count);
+  const cases: CaseData[] = [];
+
+  for (let i = 1; i <= total; i++) {
+    try {
+      const c = await getCase(i);
+      cases.push(c);
+    } catch (err) {
+      console.error(`Error fetching case ${i}:`, err);
+    }
+  }
+  return cases;
+};
+
 // Get case logs from blockchain
 export const getCaseLogs = async (caseId: string | number): Promise<CaseLog[]> => {
   const cId = Number(caseId);
@@ -134,20 +151,4 @@ export const getCasesByCitizenId = async (citizenId: string): Promise<CaseData[]
   }
 };
 
-// Get ALL cases (for Officer)
-export const getAllCases = async (): Promise<CaseData[]> => {
-  try {
-    const caseCount = await contract.caseCounter();
-    const total = Number(caseCount);
-    const promises: Promise<CaseData>[] = [];
 
-    for (let i = 1; i <= total; i++) {
-      promises.push(getCase(i));
-    }
-
-    return await Promise.all(promises);
-  } catch (error) {
-    console.error('Error fetching all cases:', error);
-    return [];
-  }
-};

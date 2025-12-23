@@ -1,7 +1,17 @@
 import { useState, useEffect } from "react";
-import { getAllCases, updateStatus, getCaseLogs } from "../api/caseApi";
+import { getAllCases, updateStatus, getCaseLogs, getCase } from "../api/caseApi";
 
-const STATUS_MAP = ["Đã nộp", "Đã tiếp nhận", "Đã phân công", "Đang xử lý", "Đã duyệt", "Từ chối"];
+// Mapping status theo API mới
+const STATUS_MAP = {
+  0: 'Đã nộp',
+  1: 'Đang xử lý',
+  2: 'Yêu cầu bổ sung',
+  3: 'Đã duyệt',
+  4: 'Từ chối',
+  5: 'Hoàn thành'
+};
+
+const STATUS_LIST = Object.entries(STATUS_MAP).map(([key, value]) => ({ id: Number(key), name: value }));
 
 const formatDate = (data) => {
   let timestamp = data;
@@ -62,14 +72,23 @@ export default function OfficerDashboard({ user }) {
   };
 
   const handleViewCase = async (caseItem) => {
-    setSelectedCase(caseItem);
     setNewStatus(Number(caseItem.status));
     setNote("");
     try {
+      // Gọi API chi tiết để lấy đầy đủ thông tin bao gồm userInfo
+      const caseRes = await getCase(caseItem.id);
+      const caseDetail = caseRes.data.data || caseRes.data;
+      console.log("Case detail:", caseDetail);
+      setSelectedCase(caseDetail);
+      setNewStatus(Number(caseDetail.status));
+      
+      // Lấy logs
       const res = await getCaseLogs(caseItem.id);
-      setLogs(res.data.data || []);
+      console.log("Logs response:", res);
+      console.log("Logs data:", res.data);
+      setLogs(res.data.data || res.data || []);
     } catch (e) {
-      console.error(e);
+      console.error("Error loading logs:", e);
     }
   };
 
@@ -154,11 +173,11 @@ export default function OfficerDashboard({ user }) {
                     <div style={{marginBottom: 20, padding: 15, backgroundColor: '#f8f9fa', borderRadius: 6}}>
                         <h4 style={{marginTop: 0, marginBottom: 10, textAlign: 'left'}}>Người nộp hồ sơ</h4>
                         <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, textAlign: 'left'}}>
-                            <div><strong>Họ tên:</strong> {selectedCase.user?.fullName || "Chưa cập nhật"}</div>
+                            <div><strong>Họ tên:</strong> {selectedCase.userInfo?.fullName || "Chưa cập nhật"}</div>
                             <div><strong>CCCD:</strong> {selectedCase.citizenId}</div>
-                            <div><strong>Ngày sinh:</strong> {selectedCase.user?.dob || "Chưa cập nhật"}</div>
-                            <div><strong>Nghề nghiệp:</strong> {selectedCase.user?.job || "Chưa cập nhật"}</div>
-                            <div style={{gridColumn: '1/-1'}}><strong>Địa chỉ:</strong> {selectedCase.user?.address || "Chưa cập nhật"}</div>
+                            <div><strong>Ngày sinh:</strong> {selectedCase.userInfo?.dob || "Chưa cập nhật"}</div>
+                            <div><strong>Nghề nghiệp:</strong> {selectedCase.userInfo?.job || "Chưa cập nhật"}</div>
+                            <div style={{gridColumn: '1/-1'}}><strong>Địa chỉ:</strong> {selectedCase.userInfo?.address || "Chưa cập nhật"}</div>
                         </div>
                     </div>
 
@@ -270,33 +289,37 @@ export default function OfficerDashboard({ user }) {
                       </div>
                     )}
 
-                    <h4 style={{borderTop: '1px solid #eee', paddingTop: 15}}>Lịch sử xử lý</h4>
-                    <ul style={{paddingLeft: 20, textAlign: 'left'}}>
-                        {logs.map((l, idx) => (
-                            <li key={idx} style={{marginBottom: 15, paddingBottom: 15, borderBottom: idx < logs.length - 1 ? '1px dashed #eee' : 'none'}}>
-                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5}}>
-                                  <strong style={{color: '#007bff'}}>
-                                    {Number(l.status) === 0 ? '📋' : Number(l.status) === 4 ? '✅' : Number(l.status) === 5 ? '❌' : '🔄'} {STATUS_MAP[Number(l.status)]}
-                                  </strong>
-                                  <span style={{fontSize: 12, color: '#999'}}>{formatDate(l)}</span>
-                                </div>
-                                <div style={{color: '#666', fontSize: 13}}>
-                                  <span>Bởi: </span>
-                                  <strong>
-                                    {l.officer 
-                                      ? `${l.officer.fullName} (${l.officer.job})` 
-                                      : (Number(l.status) === 0 ? (selectedCase.user?.fullName || 'Người nộp') : 'Hệ thống')
-                                    }
-                                  </strong>
-                                </div>
-                                {l.note && (
-                                  <div style={{marginTop: 6, padding: '6px 10px', backgroundColor: '#f8f9fa', borderLeft: '3px solid #ddd', fontStyle: 'italic', fontSize: 13}}>
-                                    Ghi chú: {translateNote(l.note)}
+                    <h4 style={{borderTop: '1px solid #eee', paddingTop: 15}}>Lịch sử xử lý ({logs.length} bản ghi)</h4>
+                    {logs.length === 0 ? (
+                      <p style={{color: '#999', fontStyle: 'italic', textAlign: 'left'}}>Chưa có lịch sử xử lý</p>
+                    ) : (
+                      <ul style={{paddingLeft: 20, textAlign: 'left'}}>
+                          {logs.map((l, idx) => {
+                              const statusNum = Number(l.status);
+                              const statusIcon = statusNum === 0 ? '📋' : statusNum === 3 || statusNum === 5 ? '✅' : statusNum === 4 ? '❌' : '🔄';
+                              return (
+                              <li key={idx} style={{marginBottom: 15, paddingBottom: 15, borderBottom: idx < logs.length - 1 ? '1px dashed #eee' : 'none'}}>
+                                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5}}>
+                                    <strong style={{color: '#007bff'}}>
+                                      {statusIcon} {STATUS_MAP[statusNum] || `Trạng thái ${statusNum}`}
+                                    </strong>
+                                    <span style={{fontSize: 12, color: '#999'}}>{formatDate(l)}</span>
                                   </div>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
+                                  <div style={{color: '#666', fontSize: 13}}>
+                                    <span>Bởi: </span>
+                                    <strong>{l.actorName || 'Hệ thống'}</strong>
+                                    {l.actorCitizenId && <span style={{color: '#888'}}> ({l.actorCitizenId})</span>}
+                                  </div>
+                                  {l.note && (
+                                    <div style={{marginTop: 6, padding: '6px 10px', backgroundColor: '#f8f9fa', borderLeft: '3px solid #ddd', fontStyle: 'italic', fontSize: 13}}>
+                                      Ghi chú: {translateNote(l.note)}
+                                    </div>
+                                  )}
+                              </li>
+                              );
+                          })}
+                      </ul>
+                    )}
                 </div>
 
                 {/* Right Column: Action */}
@@ -309,8 +332,8 @@ export default function OfficerDashboard({ user }) {
                             value={newStatus}
                             onChange={e => setNewStatus(e.target.value)}
                         >
-                            {STATUS_MAP.map((s, idx) => (
-                                <option key={idx} value={idx}>{s}</option>
+                            {STATUS_LIST.map((s) => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
                             ))}
                         </select>
                     </div>
@@ -352,8 +375,8 @@ export default function OfficerDashboard({ user }) {
                     style={{padding: '6px 12px', borderRadius: 4, border: '1px solid #ddd'}}
                 >
                     <option value="all">Tất cả trạng thái</option>
-                    {STATUS_MAP.map((s, idx) => (
-                        <option key={idx} value={idx}>{s}</option>
+                    {STATUS_LIST.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                 </select>
             </div>
@@ -371,11 +394,16 @@ export default function OfficerDashboard({ user }) {
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredCases.map(c => (
+                        {filteredCases.map(c => {
+                            const statusNum = Number(c.status);
+                            // Màu sắc: 3=Đã duyệt, 5=Hoàn thành -> xanh lá; 4=Từ chối -> đỏ; còn lại -> xám
+                            const isSuccess = statusNum === 3 || statusNum === 5;
+                            const isReject = statusNum === 4;
+                            return (
                             <tr key={c.id} style={{borderBottom: '1px solid #dee2e6'}}>
                                 <td style={{padding: 12}}>#{c.id}</td>
                                 <td style={{padding: 12}}>
-                                    <strong>{c.user?.fullName || c.citizenId}</strong>
+                                    <strong>{c.userInfo?.fullName || c.citizenId}</strong>
                                 </td>
                                 <td style={{padding: 12}}>{c.description.length > 40 ? c.description.substring(0,40)+'...' : c.description}</td>
                                 <td style={{padding: 12}}>{formatDate(c)}</td>
@@ -385,10 +413,10 @@ export default function OfficerDashboard({ user }) {
                                         borderRadius: 4, 
                                         fontSize: 12,
                                         fontWeight: 'bold',
-                                        backgroundColor: c.status == 4 ? '#d4edda' : c.status == 5 ? '#f8d7da' : '#e2e3e5',
-                                        color: c.status == 4 ? '#155724' : c.status == 5 ? '#721c24' : '#383d41'
+                                        backgroundColor: isSuccess ? '#d4edda' : isReject ? '#f8d7da' : '#e2e3e5',
+                                        color: isSuccess ? '#155724' : isReject ? '#721c24' : '#383d41'
                                     }}>
-                                        {STATUS_MAP[Number(c.status)]}
+                                        {STATUS_MAP[statusNum] || `Trạng thái ${statusNum}`}
                                     </span>
                                 </td>
                                 <td style={{padding: 12}}>
@@ -407,7 +435,8 @@ export default function OfficerDashboard({ user }) {
                                     </button>
                                 </td>
                             </tr>
-                        ))}
+                            );
+                        })}
                     </tbody>
                 </table>
             )}

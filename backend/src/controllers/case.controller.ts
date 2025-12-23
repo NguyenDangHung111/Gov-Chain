@@ -56,6 +56,16 @@ export const getCase = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+export const getAllCases = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const data = await bc.getAllCases();
+    res.json({ success: true, data });
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 export const getLogs = async (req: Request, res: Response): Promise<void> => {
   try {
     const { caseId } = req.params;
